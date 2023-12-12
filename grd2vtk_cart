@@ -7,12 +7,33 @@
 # else, just one layer
 # 
 #
+ctrFile=${1-vtkCTR.txt}
+
 name=${1-tmp}			# tmp.1.grd tmp.2.grd ....
-dfile=${2-tmp.depths}		# z_1 < z_2 < ... 
-is_3d=${3-1}			# 0: one layer at zlevel
-z_level=${4-1}			# project layer to that depth
-ascii=${5-0}
-extrude=${6-0}			# make exagerrated (by factor extrude) extrusion topography surface of a single layer
+dfile=`more $ctrFile | awk -F"=" 'NR==1{print $2}'`		# z_1 < z_2 < ... 
+
+is_3d=`more $ctrFile | awk -F"=" 'NR==2{print $2}'`			# 0: one layer at zlevel
+z_level=`more $ctrFile | awk -F"=" 'NR==4{print $2}'`			# project layer to that depth
+ascii=`more $ctrFile | awk -F"=" 'NR==5{print $2}'`
+extrude=`more $ctrFile | awk -F"=" 'NR==6{print $2}'`			# make exagerrated (by factor extrude) extrusion topography surface of a single layer
+zScaling=`more $ctrFile | awk -F"=" 'NR==7{print $2}'`    # Z-coordinate(in km) values are scaled down, to bring it at par with x,y cordinates( in degrees)
+regionChange=`more $ctrFile | awk -F"=" 'NR==3{print $2}'`
+vtkFileName=""
+
+## Getting Variables ##
+startingLineNo=`more vtkCTR.txt | awk '{if($1=="<<")print NR}' | xargs | awk '{print $1+1}'`
+endingLineNo=`more vtkCTR.txt | awk '{if($1=="<<")print NR}' | xargs | awk '{print $2-1}'`
+
+for i in $(seq $startingLineNo 1 $endingLineNo);
+do
+	vtkFileName="`more $ctrFile | awk -v lno=$i 'NR==lno{print $2}'`_${vtkFileName}"
+done
+vtkFileName="${vtkFileName}vtk.vtk"
+
+### Setting name to be the first variable
+name=`more $ctrFile | awk -v lno=$startingLineNo 'NR==lno{print $1"/"$2}'`
+
+
 
 if [ $is_3d -eq 1 ];then
     master_file=$name.1
@@ -43,63 +64,73 @@ inc=`grd2inc $master_file.grd`
 
 ((n=nx*ny*nz))
 
-echo "# vtk DataFile Version 2.0"
-echo converted from $name $dfile
+echo "# vtk DataFile Version 2.0" > $vtkFileName
+echo converted from $name $dfile >> $vtkFileName
 if [ $ascii -eq 1 ];then
-    echo ASCII
+    echo ASCII >> $vtkFileName
 else
-    echo BINARY
+    echo BINARY >> $vtkFileName
 fi
 if [ `echo $extrude | gawk '{if($1!=0)print(1);else print(0)}'` -eq 0 ];then
-    echo DATASET RECTILINEAR_GRID
-    echo DIMENSIONS $nx $ny $nz
-    echo X_COORDINATES $nx float
+    echo DATASET RECTILINEAR_GRID >> $vtkFileName 
+    echo DIMENSIONS $nx $ny $nz >> $vtkFileName 
+    echo X_COORDINATES $nx float >> $vtkFileName
     if [ $ascii -eq 1 ];then
-	grd2xyz $master_file.grd | gawk '{print($1)}' | sort -g | \
-	    uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}'
+	grd2xyz $master_file.grd $regionChange | gawk '{print($1)}' | sort -g | uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
     else
-	grd2xyz $master_file.grd | gawk '{print($1)}' | sort -g | \
-	    uniq | gawk '{print($1)}' | asciifloat2bebin 2> /dev/null
+	grd2xyz $master_file.grd $regionChange | gawk '{print($1)}' | sort -g | uniq | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
     fi
-    echo Y_COORDINATES $ny float
+    echo Y_COORDINATES $ny float >> $vtkFileName
     if [ $ascii -eq 1 ];then
-	grd2xyz $master_file.grd | gawk '{print($2)}' | sort -g | \
-	    uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}'
+	grd2xyz $master_file.grd $regionChange | gawk '{print($2)}' | sort -g | uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
     else
-	grd2xyz $master_file.grd | gawk '{print($2)}' | sort -g | \
-	    uniq | gawk '{print($1)}' | asciifloat2bebin 2> /dev/null
+	grd2xyz $master_file.grd $regionChange | gawk '{print($2)}' | sort -g | uniq | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
     fi
-    echo Z_COORDINATES $nz float 
+    
+    echo Z_COORDINATES $nz float >> $vtkFileName
     if [ $is_3d -eq 1 ];then
 	if [ $ascii -eq 1 ];then
-	    gawk '{print($1)}' $dfile | gawk '{printf("%.7e ",$1)}END{printf("\n")}'
+	    gawk '{print($1)}' $dfile | gawk -v zsc=$zScaling '{printf("%.7e ",$1/zsc)}END{printf("\n")}' >> $vtkFileName
 	else
-	    gawk '{print($1)}' $dfile | gawk '{print($1)}' | asciifloat2bebin 2> /dev/null
+	    gawk '{print($1)}' $dfile | gawk -v zsc=$zScaling '{print($1/zsc)}' | asciifloat2bebin >> $vtkFileName
 	fi
     else
 	if [ $ascii -eq 1 ];then
-	    echo $z_level | gawk '{printf("%.7e ",$1)}END{printf("\n")}'
+	    echo $z_level | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
 	else
-	    echo $z_level | gawk '{print($1)}' | asciifloat2bebin 2> /dev/null
+	    echo $z_level | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
 	fi
     fi
-    echo POINT_DATA  $n
-    echo SCALARS scalar float 1
-    echo LOOKUP_TABLE default
-    i=1
-    while [ $i -le $nz ];do
-	if [ $is_3d -eq 1 ];then
-	    file=$name.$i.grd
-	else
-	    file=$master_file.grd
-	fi
-	if [ $ascii -eq 1 ];then
-	    grd2xyz -ZBLa $file | gawk '{printf("%.7e ",$1);n++;if(n==20){printf("\n");n=0;}}END{printf("\n")}'
-	else
-	    grd2xyz -ZBLa $file | gawk '{print($1)}' | asciifloat2bebin 2> /dev/null
-	fi
-	((i=i+1))
-    done
+
+ 
+	for lno in $(seq $startingLineNo 1 $endingLineNo);
+	do
+		name=`more $ctrFile | awk -v lno=$lno 'NR==lno{print $1"/"$2}'`
+		scalarName=`more $ctrFile | awk -v lno=$lno 'NR==lno{print $2}'`
+
+		
+		echo POINT_DATA  $n >> $vtkFileName
+		echo $scalarName scalar float 1 >> $vtkFileName
+		echo LOOKUP_TABLE default >> $vtkFileName
+		
+		echo "Writing $scalarName values"
+		i=1
+		while [ $i -le $nz ];do
+			if [ $is_3d -eq 1 ];then
+			    file=$name.$i.grd
+			else
+			    file=$master_file.grd
+			fi
+			if [ $ascii -eq 1 ];then
+			    grd2xyz -ZBLa $file $regionChange | gawk '{printf("%.7e ",$1);n++;if(n==20){printf("\n");n=0;}}END{printf("\n")}' >> $vtkFileName
+			else
+			    grd2xyz -ZBLa $file $regionChange | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
+			fi
+			((i=i+1))
+		done
+	done
+	multiplier=`echo $zScaling | awk '{print 1/$1}'`
+	echo "Multiplier for z-axis: $multiplier"
 else				# extruded single layer 
     echo DATASET STRUCTURED_GRID
     echo DIMENSIONS $nx $ny $nz

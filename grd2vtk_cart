@@ -23,12 +23,14 @@ vtkFileName=""
 ## Getting Variables ##
 startingLineNo=`more vtkCTR.txt | awk '{if($1=="<<")print NR}' | xargs | awk '{print $1+1}'`
 endingLineNo=`more vtkCTR.txt | awk '{if($1=="<<")print NR}' | xargs | awk '{print $2-1}'`
+vtkFileName="`more $ctrFile | awk -v lno=$startingLineNo 'NR==lno{print $2}'`"
 
-for i in $(seq $startingLineNo 1 $endingLineNo);
+for i in $(seq $((startingLineNo+1)) 1 $endingLineNo);
 do
-	vtkFileName="`more $ctrFile | awk -v lno=$i 'NR==lno{print $2}'`_${vtkFileName}"
+	vtkFileName="${vtkFileName}_`more $ctrFile | awk -v lno=$i 'NR==lno{print $2}'`"
 done
 vtkFileName="${vtkFileName}vtk.vtk"
+
 
 ### Setting name to be the first variable
 name=`more $ctrFile | awk -v lno=$startingLineNo 'NR==lno{print $1"/"$2}'`
@@ -55,12 +57,21 @@ if [ ! -s $master_file.grd ];then
     echo $0: $master_file.grd not found
     exit
 fi
-nx=`grd2nx $master_file.grd`
-ny=`grd2ny $master_file.grd`
 
-reg=`grd2reg $master_file.grd`
-inc=`grd2inc $master_file.grd`
 
+## Determine Region
+if [[ -n $regionChange ]];
+then
+	reg=$regionChange
+else
+	reg=`grd2reg $master_file.grd`
+fi
+
+
+nx=`grd2nx $master_file.grd $reg`
+ny=`grd2ny $master_file.grd $reg`
+
+inc=`grd2inc $master_file.grd 1 $reg`
 
 ((n=nx*ny*nz))
 
@@ -76,15 +87,17 @@ if [ `echo $extrude | gawk '{if($1!=0)print(1);else print(0)}'` -eq 0 ];then
     echo DIMENSIONS $nx $ny $nz >> $vtkFileName 
     echo X_COORDINATES $nx float >> $vtkFileName
     if [ $ascii -eq 1 ];then
-	grd2xyz $master_file.grd $regionChange | gawk '{print($1)}' | sort -g | uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
+	grd2xyz $master_file.grd $reg | gawk '{print($1)}' | sort -g | uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
     else
-	grd2xyz $master_file.grd $regionChange | gawk '{print($1)}' | sort -g | uniq | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
+	grd2xyz $master_file.grd $reg | gawk '{print($1)}' | sort -g | uniq | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
     fi
+    
+
     echo Y_COORDINATES $ny float >> $vtkFileName
     if [ $ascii -eq 1 ];then
-	grd2xyz $master_file.grd $regionChange | gawk '{print($2)}' | sort -g | uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
+	grd2xyz $master_file.grd $reg | gawk '{print($2)}' | sort -g | uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
     else
-	grd2xyz $master_file.grd $regionChange | gawk '{print($2)}' | sort -g | uniq | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
+	grd2xyz $master_file.grd $reg | gawk '{print($2)}' | sort -g | uniq | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
     fi
     
     echo Z_COORDINATES $nz float >> $vtkFileName
@@ -102,15 +115,15 @@ if [ `echo $extrude | gawk '{if($1!=0)print(1);else print(0)}'` -eq 0 ];then
 	fi
     fi
 
- 
+
+ 	echo POINT_DATA  $n >> $vtkFileName
 	for lno in $(seq $startingLineNo 1 $endingLineNo);
 	do
 		name=`more $ctrFile | awk -v lno=$lno 'NR==lno{print $1"/"$2}'`
 		scalarName=`more $ctrFile | awk -v lno=$lno 'NR==lno{print $2}'`
 
-		
-		echo POINT_DATA  $n >> $vtkFileName
-		echo $scalarName scalar float 1 >> $vtkFileName
+	
+		echo SCALARS $scalarName float 1 >> $vtkFileName
 		echo LOOKUP_TABLE default >> $vtkFileName
 		
 		echo "Writing $scalarName values"
@@ -122,9 +135,9 @@ if [ `echo $extrude | gawk '{if($1!=0)print(1);else print(0)}'` -eq 0 ];then
 			    file=$master_file.grd
 			fi
 			if [ $ascii -eq 1 ];then
-			    grd2xyz -ZBLa $file $regionChange | gawk '{printf("%.7e ",$1);n++;if(n==20){printf("\n");n=0;}}END{printf("\n")}' >> $vtkFileName
+			    grd2xyz -ZBLa $file $reg | gawk '{printf("%.7e ",$1);n++;if(n==20){printf("\n");n=0;}}END{printf("\n")}' >> $vtkFileName
 			else
-			    grd2xyz -ZBLa $file $regionChange | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
+			    grd2xyz -ZBLa $file $reg | gawk '{print($1)}' | asciifloat2bebin >> $vtkFileName
 			fi
 			((i=i+1))
 		done

@@ -10,5 +10,6 @@ else
     fi
 fi
 
+region=$2 
 
-echo `grdinfo -C $name | gawk '{print($10)}'`
+echo `grdinfo -C $name $region | gawk '{print($10)}'`

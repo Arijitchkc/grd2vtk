@@ -10,8 +10,8 @@ else
 	exit
     fi
 fi
+region=$2
 
-
-echo `grdinfo -C $name | gawk '{printf("%g",$8)}' `
+echo `grdinfo -C $name $region | gawk '{printf("%g",$8)}' `
 
 

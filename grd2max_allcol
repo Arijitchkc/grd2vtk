@@ -4,8 +4,10 @@ if [ ! -s $grid ];then
     echo $0: cannot find $grid > /dev/stderr
     exit
 fi
-nx=`grd2nx $grid`
-grd2xyz $grid | \
+region=$2
+
+nx=`grd2nx $grid $region`
+grd2xyz $grid $region | \
     gawk -v nx=$nx 'BEGIN{for(i=1;i<=nx;i++)max[i]=-1e30;
                 i=0;
                 }{

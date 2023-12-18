@@ -5,6 +5,7 @@
 #
 name=${1-tmp.grd}
 mode=${2-1}			# 1: -I/ format 2: just x 3: just y 4: x and y (but no -I)
+region=${3}
 
 tmpd=`mktemp -d`
 trap "rm -fr $tmpd" EXIT
@@ -21,13 +22,13 @@ cd $tmpd
 gmtset FORMAT_FLOAT_OUT %22.15e
 
 if [ $mode -eq 1 ];then
-    echo `grdinfo -C $sname | gawk '{printf("-I%012.7e/%012.7e",$8,$9)}' `
+    echo `grdinfo -C $sname $region | gawk '{printf("-I%012.7e/%012.7e",$8,$9)}' `
 elif [ $mode -eq 2 ];then
-    echo `grdinfo -C $sname | gawk '{printf("%g",$8)}' `
+    echo `grdinfo -C $sname $region | gawk '{printf("%g",$8)}' `
 elif [ $mode -eq 3 ];then
-    echo `grdinfo -C $sname | gawk '{printf("%g",$9)}' `
+    echo `grdinfo -C $sname $region | gawk '{printf("%g",$9)}' `
 elif [ $mode -eq 4 ];then
-    echo `grdinfo -C $sname | gawk '{printf("%g %g",$8,$9)}' `
+    echo `grdinfo -C $sname $region | gawk '{printf("%g %g",$8,$9)}' `
 fi
 
 gmtset FORMAT_FLOAT_OUT %lg

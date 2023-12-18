@@ -14,7 +14,8 @@ else
     fi
 fi
 
+region=$2
 #gmtset FORMAT_FLOAT_OUT %22.15e
 #which grdinfo
-echo `grdinfo -L0 -C $name | gawk '{print($7)}'`
+echo `grdinfo -L0 -C $name $region | gawk '{print($7)}'`
 #gmtset FORMAT_FLOAT_OUT %lg

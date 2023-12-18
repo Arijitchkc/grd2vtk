@@ -13,8 +13,8 @@ else
 	exit
     fi
 fi
-
+region=$2
 
 # max location
-echo `grdinfo -M -C $name | gawk '{print($14,$15)}'`
+echo `grdinfo -M -C $name $region | gawk '{print($14,$15)}'`
 

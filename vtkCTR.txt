@@ -1,6 +1,6 @@
 dfile(# z_1 < z_2 < ...)                                              =controlFiles/vdepth.dat
 is_3d(# 0: one layer at zlevel)                                       =1			
-regionChange(0: if you want full region; else: -R50/65/15/40)         =-R55/105/-8/45
+regionChange(0: if you want full region; else: -R50/65/15/40)         =-R60/100/0/44
 z_level(# project layer to that depth)                                =1	
 ascii                                                                 =0
 extrude(# make exagerrated (by factor extrude) extrusion topography surface of a single layer)=0
@@ -11,5 +11,5 @@ ZScaling(Depth Usually divided by 111.195;)                                  =11
 <<
 vs_voigt_Absolute_RQ/grdForVtk vs_voigt_RQ
 XI_Absolute_RQ/grdForVtk XI_RQ
-<<
+<<                                      
 vpvs_Absolute_RQ/grdForVtk vpvs_RQ

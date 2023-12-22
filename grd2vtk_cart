@@ -85,7 +85,7 @@ fi
 if [ `echo $extrude | gawk '{if($1!=0)print(1);else print(0)}'` -eq 0 ];then
     echo DATASET RECTILINEAR_GRID >> $vtkFileName 
     echo DIMENSIONS $nx $ny $nz >> $vtkFileName 
-    echo X_COORDINATES $nx float >> $vtkFileName
+    echo X_COORDINATES $nx float >> $vtkFileName 
     if [ $ascii -eq 1 ];then
 	grd2xyz $master_file.grd $reg | gawk '{print($1)}' | sort -g | uniq | gawk '{printf("%.7e ",$1)}END{printf("\n")}' >> $vtkFileName
     else
@@ -134,6 +134,7 @@ if [ `echo $extrude | gawk '{if($1!=0)print(1);else print(0)}'` -eq 0 ];then
 			else
 			    file=$master_file.grd
 			fi
+			echo $file
 			if [ $ascii -eq 1 ];then
 			    grd2xyz -ZBLa $file $reg | gawk '{printf("%.7e ",$1);n++;if(n==20){printf("\n");n=0;}}END{printf("\n")}' >> $vtkFileName
 			else
@@ -145,19 +146,17 @@ if [ `echo $extrude | gawk '{if($1!=0)print(1);else print(0)}'` -eq 0 ];then
 	multiplier=`echo $zScaling | awk '{print 1/$1}'`
 	echo "Multiplier for z-axis: $multiplier"
 else				# extruded single layer 
-    echo DATASET STRUCTURED_GRID
-    echo DIMENSIONS $nx $ny $nz
-    echo POINTS  $n float
-    mean=`grd2mean $master_file.grd`
+    echo DATASET STRUCTURED_GRID >> $vtkFileName
+    echo DIMENSIONS $nx $ny $nz >> $vtkFileName
+    echo POINTS  $n float >> $vtkFileName
+    #mean=`grd2mean $master_file.grd`
+    mean=`grdinfo $master_file.grd -L2 $reg -Cn | awk '{print $11}'`
+
     grdmath  $master_file.grd $mean SUB = tmp.$$.grd
     if [ $ascii -eq 1 ];then
-	grd2xyz tmp.$$.grd | \
-	    gawk -v zl=$z_level -v scale=$extrude '{print($1,$2,zl+$3*scale)}' | \
-	    gawk '{printf("%.7e %.7e %.7e\n",$1,$2,$3)}END{}'
+	grd2xyz tmp.$$.grd $reg | gawk -v zl=$z_level -v scale=$extrude -v zsc=$zScaling '{print($1,$2,(zl+$3*scale)/(1000*zsc))}' | gawk '{printf("%.7e %.7e %.7e\n",$1,$2,$3)}END{}' >> $vtkFileName
     else
-	grd2xyz tmp.$$.grd | \
-	    gawk -v zl=$z_level -v scale=$extrude '{print($1,$2,zl+$3*scale)}' | \
-	    asciifloat2bebin 2> /dev/null
+	grd2xyz tmp.$$.grd $reg | gawk -v zl=$z_level -v scale=$extrude -v zsc=$zScaling '{print($1,$2,(zl+$3*scale)/(1000*zsc))}' | asciifloat2bebin  >> $vtkFileName
     fi
     rm tmp.$$.grd
 fi

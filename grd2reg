@@ -10,7 +10,6 @@ if [ $# -lt 1 ];then
     exit
 fi
 mode=${2-1}			# 1: -R version 2: w e s n
-
 if [ -s $1 ];then
     name=$1
 else
@@ -27,8 +26,6 @@ fi
 #fname=`readlink -f $name`
 
 #cd $tmpd
-
-
 if [ $mode -eq 1 ];then
     #grdinfo -L0 -C $name | gawk '{printf("-R%s/%s/%s/%s\n",$2,$3,$4,$5)}'
     grdinfo  -C $name | gawk '{printf("-R%s/%s/%s/%s\n",$2,$3,$4,$5)}'
